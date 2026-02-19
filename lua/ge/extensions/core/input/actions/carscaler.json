@@ -1,0 +1,3 @@
+{
+    "cs_openGui":{"cat":"carscaler", "order": 1, "ctx": "tlua", "onDown":"if carscaler then carscaler.openGui() end", "title": "Open GUI", "desc": "Open the vehicle scaling GUI"}
+}
