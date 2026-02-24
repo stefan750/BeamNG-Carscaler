@@ -55,7 +55,7 @@ local uiRandomizer = {
 
 local function scaleJBeam(objID, vehicleObj, vehicle, vehicleConfig)
     local vars = vehicleConfig.carscaler
-    if not vars then
+    if not vars or not next(vars) then
         log("I", "carscaler.scaleJBeam", "No config variables for vehicle "..vehicle.model.." with ID "..tostring(objID))
         return
     end
@@ -913,50 +913,50 @@ local function scaleJBeam(objID, vehicleObj, vehicle, vehicleConfig)
                 end
             end
         end
+    end
 
-        -- MARK: energy storage
-        if vehicle.energyStorage then
-            for i = 0, tableSizeC(vehicle.energyStorage) - 1 do
-                local es = vehicle.energyStorage[i]
+    -- MARK: energy storage
+    if vehicle.energyStorage then
+        for i = 0, tableSizeC(vehicle.energyStorage) - 1 do
+            local es = vehicle.energyStorage[i]
 
-                local tank = vehicle[es.name]
-                if tank then
-                    if tank.fuelCapacity then tank.fuelCapacity = tank.fuelCapacity * weightScale end
-                    if tank.startingFuelCapacity then tank.startingFuelCapacity = tank.startingFuelCapacity * weightScale end
-                    if tank.batteryCapacity then tank.batteryCapacity = tank.batteryCapacity * weightScale end
-                    if tank.startingBatteryCapacity then tank.startingBatteryCapacity = tank.startingBatteryCapacity * weightScale end
-                    if tank.capacity then tank.capacity = tank.capacity * weightScale end
-                    if tank.startingCapacity then tank.startingCapacity = tank.startingCapacity * weightScale end
-                end
+            local tank = vehicle[es.name]
+            if tank then
+                if tank.fuelCapacity then tank.fuelCapacity = tank.fuelCapacity * weightScale end
+                if tank.startingFuelCapacity then tank.startingFuelCapacity = tank.startingFuelCapacity * weightScale end
+                if tank.batteryCapacity then tank.batteryCapacity = tank.batteryCapacity * weightScale end
+                if tank.startingBatteryCapacity then tank.startingBatteryCapacity = tank.startingBatteryCapacity * weightScale end
+                if tank.capacity then tank.capacity = tank.capacity * weightScale end
+                if tank.startingCapacity then tank.startingCapacity = tank.startingCapacity * weightScale end
             end
         end
+    end
 
-        -- MARK: triggers
-        if vehicle.triggers then
-            for i = 0, tableSizeC(vehicle.triggers) - 1 do
-                local t = vehicle.triggers[i]
+    -- MARK: triggers
+    if vehicle.triggers then
+        for i = 0, tableSizeC(vehicle.triggers) - 1 do
+            local t = vehicle.triggers[i]
 
-                if t.translation then
-                    t.translation.x = (t.translation.x or 0) * scale
-                    t.translation.y = (t.translation.y or 0) * scale
-                    t.translation.z = (t.translation.z or 0) * scale
-                end
+            if t.translation then
+                t.translation.x = (t.translation.x or 0) * scale
+                t.translation.y = (t.translation.y or 0) * scale
+                t.translation.z = (t.translation.z or 0) * scale
+            end
 
-                if t.baseTranslation then
-                    t.baseTranslation.x = (t.baseTranslation.x or 0) * scale
-                    t.baseTranslation.y = (t.baseTranslation.y or 0) * scale
-                    t.baseTranslation.z = (t.baseTranslation.z or 0) * scale
-                end
+            if t.baseTranslation then
+                t.baseTranslation.x = (t.baseTranslation.x or 0) * scale
+                t.baseTranslation.y = (t.baseTranslation.y or 0) * scale
+                t.baseTranslation.z = (t.baseTranslation.z or 0) * scale
+            end
 
-                if t.size then
-                    -- Sphere triggers use single number for size
-                    if type(t.size) == "number" then
-                        t.size = t.size * scale
-                    else
-                        t.size.x = (t.size.x or 0) * scale
-                        t.size.y = (t.size.y or 0) * scale
-                        t.size.z = (t.size.z or 0) * scale
-                    end
+            if t.size then
+                -- Sphere triggers use single number for size
+                if type(t.size) == "number" then
+                    t.size = t.size * scale
+                else
+                    t.size.x = (t.size.x or 0) * scale
+                    t.size.y = (t.size.y or 0) * scale
+                    t.size.z = (t.size.z or 0) * scale
                 end
             end
         end
