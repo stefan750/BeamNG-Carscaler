@@ -257,7 +257,7 @@ local function scaleJBeam(objID, vehicleObj, vehicle, vehicleConfig)
     end
 
     -- MARK: beams
-    local lBeamMult = 1/stiffnessScale--min(scale, 1)
+    local lBeamMult = 1--min(scale, 1)
     local pressureBeamScale = stiffnessScale / max(scale, 1)
     if vehicle.beams then
         for i = 0, tableSizeC(vehicle.beams) - 1 do
@@ -268,7 +268,8 @@ local function scaleJBeam(objID, vehicleObj, vehicle, vehicleConfig)
             if b.beamSpring then b.beamSpring = b.beamSpring * stiffnessScale end
             if b.beamDamp then b.beamDamp = b.beamDamp * stiffnessScale end
             if b.deformLimitStress then b.deformLimitStress = b.deformLimitStress * stiffnessScale end
-            if b.maxStress then b.maxStress = b.maxStress * stiffnessScale end
+
+            if b.maxStress then b.maxStress = b.maxStress * stiffnessScale * scaleArea end
 
             if b.beamStrength then b.beamStrength = b.beamStrength * strengthScale end
             if b.beamDeform then b.beamDeform = b.beamDeform * strengthScale end
@@ -307,15 +308,16 @@ local function scaleJBeam(objID, vehicleObj, vehicle, vehicleConfig)
                 b.surface = (b.surface or 1) * scaleArea
             -- TODO: LBeam values may need some more tuning
             elseif (b.beamType == BEAM_LBEAM) then
-                if b.beamSpring then b.beamSpring = b.beamSpring * stiffnessScale * lBeamMult end
-                if b.beamDamp then b.beamDamp = b.beamDamp * stiffnessScale * lBeamMult end
-                if b.deformLimitStress then b.deformLimitStress = b.deformLimitStress * stiffnessScale * lBeamMult end
-                if b.maxStress then b.maxStress = b.maxStress * stiffnessScale * lBeamMult end
+                if b.beamSpring then b.beamSpring = b.beamSpring * lBeamMult end
+                if b.beamDamp then b.beamDamp = b.beamDamp * lBeamMult end
+                if b.deformLimitStress then b.deformLimitStress = b.deformLimitStress * lBeamMult end
+                if b.maxStress then b.maxStress = b.maxStress * lBeamMult end
+
                 if b.springExpansion then b.springExpansion = b.springExpansion * stiffnessScale * lBeamMult end
                 if b.dampExpansion then b.dampExpansion = b.dampExpansion * stiffnessScale * lBeamMult end
 
-                if b.beamStrength then b.beamStrength = b.beamStrength * strengthScale * lBeamMult end
-                if b.beamDeform then b.beamDeform = b.beamDeform * strengthScale * lBeamMult end
+                if b.beamStrength then b.beamStrength = b.beamStrength * lBeamMult end
+                if b.beamDeform then b.beamDeform = b.beamDeform * lBeamMult end
             end
         end
     end
@@ -617,12 +619,12 @@ local function scaleJBeam(objID, vehicleObj, vehicle, vehicleConfig)
                     if ce.dynamicFriction then ce.dynamicFriction = ce.dynamicFriction * weightScale end
                     if ce.starterTorque then ce.starterTorque = ce.starterTorque * weightScale end
                     if ce.engineBrakeTorque then ce.engineBrakeTorque = ce.engineBrakeTorque * weightScale end
+                    if ce.coolantVolume then ce.coolantVolume = ce.coolantVolume * weightScale end
+                    if ce.oilVolume then ce.oilVolume = ce.oilVolume * weightScale end
 
                     if ce.maxTorqueRating then ce.maxTorqueRating = ce.maxTorqueRating * powerScale end
                     if ce.radiatorArea then ce.radiatorArea = ce.radiatorArea * powerScale end
                     if ce.radiatorFanVolume then ce.radiatorFanVolume = ce.radiatorFanVolume * powerScale end
-                    if ce.coolantVolume then ce.coolantVolume = ce.coolantVolume * powerScale end
-                    if ce.oilVolume then ce.oilVolume = ce.oilVolume * powerScale end
                     if ce.oilRadiatorArea then ce.oilRadiatorArea = ce.oilRadiatorArea * powerScale end
 
                     -- TODO: fully parse header tables to verify the correct values are scaled
@@ -961,6 +963,43 @@ local function scaleJBeam(objID, vehicleObj, vehicle, vehicleConfig)
             end
         end
     end
+
+    -- MARK: old powertrain
+    if vehicle.engine then
+        local e = vehicle.engine
+
+        if powerScale > 1 then
+            e.thermalsEnabled = false
+        end
+
+        e.inertia = (e.inertia or 0.2) * weightScale
+        e.friction = (e.friction or e.engineFriction or 20) * weightScale
+        e.brakingCoefRPS = (e.brakingCoefRPS or 0.2) * weightScale
+        if e.coolantVolume then e.coolantVolume = e.coolantVolume * weightScale end
+        if e.oilVolume then e.oilVolume = e.oilVolume * weightScale end
+        if e.fuelCapacity then e.fuelCapacity = e.fuelCapacity * weightScale end
+        if e.axleFriction then e.axleFriction = e.axleFriction * weightScale end
+
+        e.viscousCoupling = (e.viscousCoupling or 10) * powerScale
+        if e.engineBlockAirCoolingEfficiency then e.engineBlockAirCoolingEfficiency = e.engineBlockAirCoolingEfficiency * powerScale end
+        if e.radiatorArea then e.radiatorArea = e.radiatorArea * powerScale end
+        if e.oilRadiatorArea then e.oilRadiatorArea = e.oilRadiatorArea * powerScale end
+
+        -- Compensate gear ratio for changed wheel size
+        e.differential = (e.differential or 1) * gearRatioScale
+    end
+
+    if vehicle.enginetorque then
+        for _, et in ipairs(vehicle.enginetorque) do
+            if et.torque then et.torque = et.torque * powerScale end
+        end
+    end
+
+    if vehicle.differentials then
+        for _, d in ipairs(vehicle.differentials) do
+            if d.closedTorque then d.closedTorque = d.closedTorque * powerScale end
+        end
+    end
 end
 
 -- MARK: extension loading
@@ -1148,7 +1187,7 @@ end
 local function onPreRender(dt)
     if not windowOpen[0] then return end
 
-    if im.Begin("Carscaler by stefan750 (v1.0.0)", windowOpen, im.WindowFlags_AlwaysAutoResize) then
+    if im.Begin("Carscaler by stefan750 (v1.0.1)", windowOpen, im.WindowFlags_AlwaysAutoResize) then
         im.PushStyleVar2(im.StyleVar_FramePadding, im.ImVec2(4, 2))
         im.PushStyleVar2(im.StyleVar_ItemSpacing, im.ImVec2(4, 6))
 
