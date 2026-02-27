@@ -1,7 +1,7 @@
 # BeamNG-Carscaler
 Mod for BeamNG.drive that allows you to change the size of any vehicle.
 
-BeamNG mod repository page (link will not work until the approval process is complete): https://www.beamng.com/resources/carscaler.37262/
+Download and more information can be found on the BeamNG mod repository page: https://www.beamng.com/resources/carscaler.37262/
 
 ## Usage:
 1. Press **Alt+Backspace** to bring up the Carscaler menu. This keybind can be changed in the controls menu.
