@@ -53,6 +53,11 @@ local uiRandomizer = {
     autoApply = im.BoolPtr(true)
 }
 
+-- TODO: add values for other vehicles
+local disablePressureGroupThreshold = {
+    atv = 0.3
+}
+
 local function scaleJBeam(objID, vehicleObj, vehicle, vehicleConfig)
     local vars = vehicleConfig.carscaler
     if not vars or not next(vars) then
@@ -84,7 +89,7 @@ local function scaleJBeam(objID, vehicleObj, vehicle, vehicleConfig)
     local pressureGroupScale = weightScale / max(scaleArea, 1)
     local aeroScale = weightScale / scaleArea * (vars.aeroMultiplier or 1)
 
-    local disablePressureGroups = pressureGroupScale < 0.05
+    local disablePressureGroups =  pressureGroupScale < (disablePressureGroupThreshold[vehicle.model] or 0.05)
     if vars.disablePressureGroups ~= nil then disablePressureGroups = vars.disablePressureGroups end
     local disableSelfCollision = scale < 0.7
     if vars.disableSelfCollision ~= nil then disableSelfCollision = vars.disableSelfCollision end
@@ -422,6 +427,12 @@ local function scaleJBeam(objID, vehicleObj, vehicle, vehicleConfig)
         for i = 0, tableSizeC(vehicle.rotators) - 1 do
             local r = vehicle.rotators[i]
 
+            -- Skip scaling the Wydra brakes here since they are not directly on the wheels
+            -- and would be affected by the gear ratio scaling twice
+            if r.partOrigin == "atv_brakes" or r.partOrigin == "atv_brakes_4x4" then
+                goto continue
+            end
+
             if r.brakeDiameter then r.brakeDiameter = r.brakeDiameter * scale end
 
             if r.brakeMass then r.brakeMass = r.brakeMass * weightScale end
@@ -430,6 +441,8 @@ local function scaleJBeam(objID, vehicleObj, vehicle, vehicleConfig)
 
             if r.brakeTorque then r.brakeTorque = r.brakeTorque * weightScale * scale end
             if r.parkingTorque then r.parkingTorque = r.parkingTorque * weightScale * scale end
+
+            ::continue::
         end
     end
 
@@ -540,6 +553,8 @@ local function scaleJBeam(objID, vehicleObj, vehicle, vehicleConfig)
                         end
                     end
                 end
+            elseif c.fileName == "brakedDifferentialSteering" then
+                if c.maxSteeringBrakeTorque then c.maxSteeringBrakeTorque = c.maxSteeringBrakeTorque * weightScale * scale end
             end
         end
     end
@@ -858,7 +873,7 @@ local function scaleJBeam(objID, vehicleObj, vehicle, vehicleConfig)
                     diff.viscousCoef = (diff.viscousCoef or 5) * powerScale
                     if diff.viscousTorque then diff.viscousTorque = diff.viscousTorque * powerScale end
 
-                    --if diff.lockSpring then diff.lockSpring = diff.lockSpring * stiffnessScale end
+                    if diff.lockSpring then diff.lockSpring = diff.lockSpring * stiffnessScale end
                 else
                     -- Diffs sometimes have values set directly on the device
                     if device.friction then device.friction = device.friction * weightScale end
@@ -871,7 +886,7 @@ local function scaleJBeam(objID, vehicleObj, vehicle, vehicleConfig)
                     device.viscousCoef = (device.viscousCoef or 5) * powerScale
                     if device.viscousTorque then device.viscousTorque = device.viscousTorque * powerScale end
 
-                    --if device.lockSpring then device.lockSpring = device.lockSpring * stiffnessScale end
+                    if device.lockSpring then device.lockSpring = device.lockSpring * stiffnessScale end
                 end
             elseif device.type == "splitShaft" then
                     local ss = vehicle[device.name]
@@ -1193,7 +1208,7 @@ local function onPreRender(dt)
 
         im.SetNextItemWidth(200)
         im.PushFont3("cairo_semibold_large")
-        im.DragFloat("Vehicle Scale", uiData.scale, 0.01, 0.1, 10, "%.2f")
+        im.DragFloat("Vehicle Scale", uiData.scale, 0.01, 0.3, 10, "%.2f")
         im.PopFont()
         if im.IsItemHovered() then im.SetTooltip("Scales the entire vehicle while trying to keep the overall behaviour similar to the original") end
         im.Separator()
@@ -1241,36 +1256,22 @@ local function onPreRender(dt)
         end
 
         if im.CollapsingHeader1("Randomizer settings") then
-            im.PushItemWidth(100)
+            im.PushItemWidth(200)
             im.Checkbox("Randomize scale", uiRandomizer.scaleEnabled)
             if im.IsItemHovered() then im.SetTooltip("Set if the overall vehicle size should be randomized") end
             im.BeginDisabled(not uiRandomizer.scaleEnabled[0])
-            im.DragFloat("##1", uiRandomizer.scaleMin, 0.01, 0.1, max(uiRandomizer.scaleMax[0], 0.1+1e-6), "Min: %.2f")
-            im.SameLine()
-            im.DragFloat("Vehicle Scale##2", uiRandomizer.scaleMax, 0.01, min(uiRandomizer.scaleMin[0], 10-1e-6), 10, "Max: %.2f")
+            im.DragFloatRange2("Vehicle Scale", uiRandomizer.scaleMin, uiRandomizer.scaleMax, 0.01, 0.3, 10, "Min: %.2f", "Max: %.2f")
             im.EndDisabled()
             im.Separator()
             im.Checkbox("Randomize multipliers", uiRandomizer.multipliersEnabled)
             if im.IsItemHovered() then im.SetTooltip("Set if the additional multipliers should be randomized") end
             im.BeginDisabled(not uiRandomizer.multipliersEnabled[0])
-            im.DragFloat("##2", uiRandomizer.weightMultiplierMin, 0.01, 0.01, max(uiRandomizer.weightMultiplierMax[0], 0.01+1e-6), "Min: %.2f")
-            im.SameLine()
-            im.DragFloat("Weight", uiRandomizer.weightMultiplierMax, 0.01, min(uiRandomizer.weightMultiplierMin[0], 10-1e-6), 10, "Max: %.2f")
-            im.DragFloat("##3", uiRandomizer.stiffnessMultiplierMin, 0.01, 0.01, max(uiRandomizer.stiffnessMultiplierMax[0], 0.01+1e-6), "Min: %.2f")
-            im.SameLine()
-            im.DragFloat("Stiffness", uiRandomizer.stiffnessMultiplierMax, 0.01, min(uiRandomizer.stiffnessMultiplierMin[0], 1-1e-6), 1, "Max: %.2f")
-            im.DragFloat("##4", uiRandomizer.strengthMultiplierMin, 0.01, 0.01, max(uiRandomizer.strengthMultiplierMax[0], 0.01+1e-6), "Min: %.2f")
-            im.SameLine()
-            im.DragFloat("Strength", uiRandomizer.strengthMultiplierMax, 0.01, min(uiRandomizer.strengthMultiplierMin[0], 10-1e-6), 10, "Max: %.2f")
-            im.DragFloat("##5", uiRandomizer.powerMultiplierMin, 0.01, 0, max(uiRandomizer.powerMultiplierMax[0], 0.01+1e-6), "Min: %.2f")
-            im.SameLine()
-            im.DragFloat("Engine Power", uiRandomizer.powerMultiplierMax, 0.01, min(uiRandomizer.powerMultiplierMin[0], 10-1e-6), 10, "Max: %.2f")
-            im.DragFloat("##6", uiRandomizer.gearRatioMultiplierMin, 0.01, 0.01, max(uiRandomizer.gearRatioMultiplierMax[0], 0.01+1e-6), "Min: %.2f")
-            im.SameLine()
-            im.DragFloat("Gear Ratio", uiRandomizer.gearRatioMultiplierMax, 0.01, min(uiRandomizer.gearRatioMultiplierMin[0], 10-1e-6), 10, "Max: %.2f")
-            im.DragFloat("##7", uiRandomizer.aeroMultiplierMin, 0.01, 0, max(uiRandomizer.aeroMultiplierMax[0], 0.01+1e-6), "Min: %.2f")
-            im.SameLine()
-            im.DragFloat("Drag/Lift", uiRandomizer.aeroMultiplierMax, 0.01, min(uiRandomizer.aeroMultiplierMin[0], 10-1e-6), 10, "Max: %.2f")
+            im.DragFloatRange2("Weight", uiRandomizer.weightMultiplierMin, uiRandomizer.weightMultiplierMax, 0.01, 0.01, 10, "Min: %.2f", "Max: %.2f")
+            im.DragFloatRange2("Stiffness", uiRandomizer.stiffnessMultiplierMin, uiRandomizer.stiffnessMultiplierMax, 0.01, 0.01, 1, "Min: %.2f", "Max: %.2f")
+            im.DragFloatRange2("Strength", uiRandomizer.strengthMultiplierMin, uiRandomizer.strengthMultiplierMax, 0.01, 0.01, 10, "Min: %.2f", "Max: %.2f")
+            im.DragFloatRange2("Engine Power", uiRandomizer.powerMultiplierMin, uiRandomizer.powerMultiplierMax, 0.01, 0, 10, "Min: %.2f", "Max: %.2f")
+            im.DragFloatRange2("Gear Ratio", uiRandomizer.gearRatioMultiplierMin, uiRandomizer.gearRatioMultiplierMax, 0.01, 0.01, 10, "Min: %.2f", "Max: %.2f")
+            im.DragFloatRange2("Drag/Lift", uiRandomizer.aeroMultiplierMin, uiRandomizer.aeroMultiplierMax, 0.01, 0, 10, "Min: %.2f", "Max: %.2f")
             im.EndDisabled()
             im.PopItemWidth()
             im.Separator()
